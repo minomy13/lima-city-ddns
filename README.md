@@ -16,7 +16,7 @@ For example, you could design your Docker compose like that:
 ```yml
 services:
   ddns:
-    image: "ghcr.io/minomy13/lima-city-ddns:main"
+    image: "ghcr.io/minomy13/lima-city-ddns:latest"
     restart: always
     environment:
       AUTH: "<YOUR_API_KEY>"
