@@ -1,7 +1,6 @@
 use crate::Mode::ExternalApi;
 use reqwest::{Response, StatusCode};
 use serde::Deserialize;
-use serde::__private::de::IdentifierDeserializer;
 use serde_json::json;
 
 enum Mode {
@@ -52,7 +51,9 @@ async fn main() {
     println!("   🔄 Updating records initially now.");
     for domain in &domain_data {
         match update_domain(&auth_token, &domain, &ip_buffer).await {
-            Ok(_) => {println!("   ✅ Updated domain with ID {}.", &domain.id)},
+            Ok(_) => {
+                println!("   ✅ Updated domain with ID {}.", &domain.id)
+            }
             Err(err) => println!("Something went wrong! Error: {err}"),
         };
     }
@@ -79,8 +80,10 @@ async fn main() {
             println!("   🔄 Updating records now.");
             for domain in &domain_data {
                 match update_domain(&auth_token, &domain, &nat_ip).await {
-                    Ok(_) => {println!("   ✅ Updated domain with ID {}.", &domain.id)},
-                    Err(err) => println!("Something went wrong! Error: {err}")
+                    Ok(_) => {
+                        println!("   ✅ Updated domain with ID {}.", &domain.id)
+                    }
+                    Err(err) => println!("Something went wrong! Error: {err}"),
                 };
             }
 
@@ -111,9 +114,7 @@ async fn update_record(
         .await
     {
         Ok(res) => match res.status() {
-            StatusCode::OK =>
-                Ok(res)
-            ,
+            StatusCode::OK => Ok(res),
             other => Err(format!("Request failed with status code {other}")),
         },
         Err(_err) => Err("Request went wrong.".to_string()),
@@ -129,9 +130,13 @@ async fn update_domain(auth: &str, domain: &Domain, new_content: &str) -> Result
 
 async fn request_ip_external() -> Result<String, String> {
     let client = reqwest::Client::new();
-    match client.get("https://api64.ipify.org?format=json").send().await {
+    match client
+        .get("https://api64.ipify.org?format=json")
+        .send()
+        .await
+    {
         Ok(res) => Ok(res.json::<IpAPIResponse>().await.unwrap().ip),
-        Err(_err) => Err("External IP request went wrong.".to_string())
+        Err(_err) => Err("External IP request went wrong.".to_string()),
     }
 }
 

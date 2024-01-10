@@ -1,11 +1,9 @@
 [package]
 name = "lima-city-ddns"
-version = "0.1.0"
+version = "2.0.0"
 edition = "2021"
 
 [dependencies]
-chrono = "0.4.31"
-cron_tab = "0.2.1"
 reqwest = { version = "0.11.23", features = ["blocking", "json"] }
 serde = { version = "1.0.195", features = ["derive"] }
 serde_json = "1.0.111"
