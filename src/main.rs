@@ -10,8 +10,8 @@ enum Mode {
 #[tokio::main]
 async fn main() {
     // reading environment variables
-    let auth_token = env!("AUTH").to_string();
-    let domain_data = env!("DOMAIN_DATA").to_string();
+    let auth_token = std::env::var("AUTH").to_string();
+    let domain_data = std::env::var("DOMAIN_DATA").to_string();
     // used for future feature
     let mode: Mode = ExternalApi;
 
