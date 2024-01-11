@@ -10,8 +10,12 @@ enum Mode {
 #[tokio::main]
 async fn main() {
     // reading environment variables
-    let auth_token = std::env::var("AUTH").unwrap().to_string();
-    let domain_data = std::env::var("DOMAIN_DATA").unwrap().to_string();
+    let auth_token = std::env::var("AUTH")
+        .expect("AUTH environment variable is missing.")
+        .to_string();
+    let domain_data = std::env::var("DOMAIN_DATA")
+        .expect("DOMAIN_DATA environment variable is missing.")
+        .to_string();
     // used for future feature
     let mode: Mode = ExternalApi;
 
@@ -40,28 +44,40 @@ async fn main() {
         .collect();
 
     // initialization
-    let mut ip_buffer = request_ip_external().await.unwrap();
+    let mut ip_buffer = loop {
+        match request_ip_external().await {
+            Ok(res) => break res,
+            Err(err) => {
+                println!("{} Retrying in a minute.", err);
+                wait_minute();
+                continue;
+            }
+        }
+    };
     println!(
-        "🌍 Initial request. Fetched IP Address {} from {}.",
+        "🌍 Initial request. Fetched IP Address {} from {} at {}.",
         ip_buffer,
         match mode {
             ExternalApi => "External API",
-        }
+        },
+        chrono::Local::now().to_string()
     );
     println!("   🔄 Updating records initially now.");
-    for domain in &domain_data {
-        match update_domain(&auth_token, &domain, &ip_buffer).await {
-            Ok(_) => {
-                println!("   ✅ Updated domain with ID {}.", &domain.id)
-            }
-            Err(err) => println!("Something went wrong! Error: {err}"),
-        };
-    }
+    handle_domain_data(&domain_data, &auth_token, &ip_buffer).await;
 
     // loop for external API mode
     if matches!(mode, ExternalApi) {
         loop {
-            let nat_ip = request_ip_external().await.unwrap();
+            let nat_ip = loop {
+                match request_ip_external().await {
+                    Ok(res) => break res,
+                    Err(err) => {
+                        println!("{} Retrying in a minute.", err);
+                        wait_minute();
+                        continue;
+                    }
+                }
+            };
             if nat_ip.eq(&ip_buffer) {
                 // wait 1 minute before next iteration
                 wait_minute();
@@ -69,23 +85,17 @@ async fn main() {
             }
 
             println!(
-                "🌍 Fetched NAT IP Address {} from {}.",
+                "🌍 Fetched NAT IP Address {} from {} at {}.",
                 nat_ip,
                 match mode {
                     ExternalApi => "External API",
-                }
+                },
+                chrono::Local::now().to_string()
             );
             *&mut ip_buffer = nat_ip.clone();
 
             println!("   🔄 Updating records now.");
-            for domain in &domain_data {
-                match update_domain(&auth_token, &domain, &nat_ip).await {
-                    Ok(_) => {
-                        println!("   ✅ Updated domain with ID {}.", &domain.id)
-                    }
-                    Err(err) => println!("Something went wrong! Error: {err}"),
-                };
-            }
+            handle_domain_data(&domain_data, &auth_token, &nat_ip).await;
 
             // wait 1 minute before next iteration
             wait_minute();
@@ -121,6 +131,17 @@ async fn update_record(
     }
 }
 
+async fn handle_domain_data(domain_data: &Vec<Domain>, auth_token: &str, nat_ip: &str) {
+    for domain in domain_data {
+        match update_domain(&auth_token, &domain, &nat_ip).await {
+            Ok(_) => {
+                println!("   ✅ Updated domain with ID {}.", &domain.id)
+            }
+            Err(err) => println!("Something went wrong! Error: {err}"),
+        };
+    }
+}
+
 async fn update_domain(auth: &str, domain: &Domain, new_content: &str) -> Result<(), String> {
     for record in &domain.records {
         update_record(auth, &domain.id, &record.id, new_content).await?;
@@ -136,7 +157,9 @@ async fn request_ip_external() -> Result<String, String> {
         .await
     {
         Ok(res) => Ok(res.json::<IpAPIResponse>().await.unwrap().ip),
-        Err(_err) => Err("External IP request went wrong.".to_string()),
+        Err(_err) => {
+            Err("External IP request went wrong. There may be no internet connection.".to_string())
+        }
     }
 }
 
