@@ -63,14 +63,7 @@ async fn main() {
         chrono::Local::now().to_string()
     );
     println!("   🔄 Updating records initially now.");
-    for domain in &domain_data {
-        match update_domain(&auth_token, &domain, &ip_buffer).await {
-            Ok(_) => {
-                println!("   ✅ Updated domain with ID {}.", &domain.id)
-            }
-            Err(err) => println!("Something went wrong! Error: {err}"),
-        };
-    }
+    handle_domain_data(&domain_data, &auth_token, &ip_buffer).await;
 
     // loop for external API mode
     if matches!(mode, ExternalApi) {
@@ -102,14 +95,7 @@ async fn main() {
             *&mut ip_buffer = nat_ip.clone();
 
             println!("   🔄 Updating records now.");
-            for domain in &domain_data {
-                match update_domain(&auth_token, &domain, &nat_ip).await {
-                    Ok(_) => {
-                        println!("   ✅ Updated domain with ID {}.", &domain.id)
-                    }
-                    Err(err) => println!("Something went wrong! Error: {err}"),
-                };
-            }
+            handle_domain_data(&domain_data, &auth_token, &nat_ip).await;
 
             // wait 1 minute before next iteration
             wait_minute();
@@ -142,6 +128,17 @@ async fn update_record(
             other => Err(format!("Request failed with status code {other}")),
         },
         Err(_err) => Err("Request went wrong.".to_string()),
+    }
+}
+
+async fn handle_domain_data(domain_data: &Vec<Domain>, auth_token: &str, nat_ip: &str) {
+    for domain in domain_data {
+        match update_domain(&auth_token, &domain, &nat_ip).await {
+            Ok(_) => {
+                println!("   ✅ Updated domain with ID {}.", &domain.id)
+            }
+            Err(err) => println!("Something went wrong! Error: {err}"),
+        };
     }
 }
 
