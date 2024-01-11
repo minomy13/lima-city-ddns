@@ -42,11 +42,12 @@ async fn main() {
     // initialization
     let mut ip_buffer = request_ip_external().await.unwrap();
     println!(
-        "🌍 Initial request. Fetched IP Address {} from {}.",
+        "🌍 Initial request. Fetched IP Address {} from {} at {}.",
         ip_buffer,
         match mode {
             ExternalApi => "External API",
-        }
+        },
+        chrono::Local::now().to_string()
     );
     println!("   🔄 Updating records initially now.");
     for domain in &domain_data {
@@ -69,11 +70,12 @@ async fn main() {
             }
 
             println!(
-                "🌍 Fetched NAT IP Address {} from {}.",
+                "🌍 Fetched NAT IP Address {} from {} at {}.",
                 nat_ip,
                 match mode {
                     ExternalApi => "External API",
-                }
+                },
+                chrono::Local::now().to_string()
             );
             *&mut ip_buffer = nat_ip.clone();
 
