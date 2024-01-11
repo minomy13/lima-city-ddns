@@ -1,14 +1,17 @@
 use crate::Mode::{ExternalApi, Router};
+use actix_web::web::Query;
+use actix_web::{get, web, App, HttpServer, Responder};
 use reqwest::{Response, StatusCode};
 use serde::Deserialize;
 use serde_json::json;
+use regex::Regex;
 
 enum Mode {
     ExternalApi,
     Router,
 }
 
-#[tokio::main]
+#[actix_web::main]
 async fn main() {
     // reading environment variables
     let auth_token = std::env::var("AUTH")
@@ -18,9 +21,9 @@ async fn main() {
         .expect("DOMAIN_DATA environment variable is missing.")
         .to_string();
     let mode: Mode = match std::env::var("MODE") {
-        Ok(res) => match res {
-            String::from("external_api") => ExternalApi,
-            String::from("router") => Router,
+        Ok(res) => match res.as_str() {
+            "external_api" => ExternalApi,
+            "router" => Router,
             other => {
                 println!("Mode {other} not known. Value defaults to \"external_api\".");
                 ExternalApi
@@ -30,6 +33,14 @@ async fn main() {
             println!("No mode set. Value defaults to \"external_api\".");
             ExternalApi
         }
+    };
+    let password: Option<String> = match mode {
+        ExternalApi => None,
+        Router => Some(
+            std::env::var("PASSWORD")
+                .expect("PASSWORD environment variable is missing. It is needed in router mode.")
+                .to_string(),
+        ),
     };
 
     // parsing data from environment variables
@@ -56,33 +67,11 @@ async fn main() {
         })
         .collect();
 
-    // initialization
-    let mut ip_buffer = loop {
-        match request_ip_external().await {
-            Ok(res) => break res,
-            Err(err) => {
-                println!("{} Retrying in a minute.", err);
-                wait_minute();
-                continue;
-            }
-        }
-    };
-    println!(
-        "🌍 Initial request. Fetched IP Address {} from {} at {}.",
-        ip_buffer,
-        match mode {
-            ExternalApi => "External API",
-            Mode::Router => "Router",
-        },
-        chrono::Local::now().to_string()
-    );
-    println!("   🔄 Updating records initially now.");
-    handle_domain_data(&domain_data, &auth_token, &ip_buffer).await;
-
-    // loop for external API mode
-    if matches!(mode, ExternalApi) {
-        loop {
-            let nat_ip = loop {
+    match mode {
+        // external API mode logic
+        ExternalApi => {
+            // initialization
+            let mut ip_buffer = loop {
                 match request_ip_external().await {
                     Ok(res) => break res,
                     Err(err) => {
@@ -92,30 +81,95 @@ async fn main() {
                     }
                 }
             };
-            if nat_ip.eq(&ip_buffer) {
-                // wait 1 minute before next iteration
-                wait_minute();
-                continue;
-            }
-
             println!(
-                "🌍 Fetched NAT IP Address {} from {} at {}.",
-                nat_ip,
+                "🌍 Initial request. Fetched IP Address {} from {} at {}.",
+                ip_buffer,
                 match mode {
                     ExternalApi => "External API",
-                    Mode::Router => "Router",
+                    Router => "Router",
                 },
                 chrono::Local::now().to_string()
             );
-            *&mut ip_buffer = nat_ip.clone();
+            println!("   🔄 Updating records initially now.");
+            handle_domain_data(&domain_data, &auth_token, &ip_buffer).await;
 
-            println!("   🔄 Updating records now.");
-            handle_domain_data(&domain_data, &auth_token, &nat_ip).await;
+            // loop for external API mode
+            loop {
+                let nat_ip = loop {
+                    match request_ip_external().await {
+                        Ok(res) => break res,
+                        Err(err) => {
+                            println!("{} Retrying in a minute.", err);
+                            wait_minute();
+                            continue;
+                        }
+                    }
+                };
+                if nat_ip.eq(&ip_buffer) {
+                    // wait 1 minute before next iteration
+                    wait_minute();
+                    continue;
+                }
 
-            // wait 1 minute before next iteration
-            wait_minute();
+                println!(
+                    "🌍 Fetched NAT IP Address {} from {} at {}.",
+                    nat_ip,
+                    match mode {
+                        ExternalApi => "External API",
+                        Router => "Router",
+                    },
+                    chrono::Local::now().to_string()
+                );
+                *&mut ip_buffer = nat_ip.clone();
+
+                println!("   🔄 Updating records now.");
+                handle_domain_data(&domain_data, &auth_token, &nat_ip).await;
+
+                // wait 1 minute before next iteration
+                wait_minute();
+            }
+        }
+
+        // router mode logic
+        Router => {
+            // data management
+            let password = password.unwrap();
+            let config = web::Data::new(Config {
+                auth_token,
+                domain_data,
+                password,
+            });
+
+            // server
+            HttpServer::new(move || App::new().app_data(config.clone()).service(index))
+                .bind(("0.0.0.0", 3000))
+                .unwrap()
+                .run()
+                .await
+                .unwrap();
         }
     }
+}
+
+#[get("/")]
+async fn index(query: Query<DDNSRequestQuery>, config: web::Data<Config>) -> impl Responder {
+    if config.password != query.password {
+        return ("Wrong password", StatusCode::UNAUTHORIZED);
+    }
+
+    if !check_if_ipv4(&query.ip.as_str()) {
+        return ("Not an IPv4", StatusCode::BAD_REQUEST)
+    }
+
+    println!(
+        "🌍 Fetched NAT IP Address {} from router at {}.",
+        query.ip,
+        chrono::Local::now().to_string()
+    );
+    println!("   🔄 Updating records now.");
+    handle_domain_data(&config.domain_data, &config.auth_token, &query.ip).await;
+
+    ("Ok", StatusCode::OK)
 }
 
 async fn update_record(
@@ -152,6 +206,7 @@ async fn handle_domain_data(domain_data: &Vec<Domain>, auth_token: &str, nat_ip:
             Ok(_) => {
                 println!("   ✅ Updated domain with ID {}.", &domain.id)
             }
+            // TODO panic here!
             Err(err) => println!("Something went wrong! Error: {err}"),
         };
     }
@@ -178,6 +233,11 @@ async fn request_ip_external() -> Result<String, String> {
     }
 }
 
+fn check_if_ipv4(ip: &str) -> bool {
+    let regex = Regex::new(r"\d+[.]\d+[.]\d+[.]\d+").unwrap();
+    regex.is_match(ip)
+}
+
 fn wait_minute() {
     std::thread::sleep(std::time::Duration::from_secs(60))
 }
@@ -194,4 +254,17 @@ struct Record {
 #[derive(Deserialize)]
 struct IpAPIResponse {
     ip: String,
+}
+
+#[derive(Deserialize)]
+struct DDNSRequestQuery {
+    ip: String,
+    password: String,
+}
+
+// config for passing data to web server route
+struct Config {
+    auth_token: String,
+    domain_data: Vec<Domain>,
+    password: String,
 }
