@@ -5,6 +5,7 @@ use serde_json::json;
 
 enum Mode {
     ExternalApi,
+    Router,
 }
 
 #[tokio::main]
@@ -59,6 +60,7 @@ async fn main() {
         ip_buffer,
         match mode {
             ExternalApi => "External API",
+            Mode::Router => "Router",
         },
         chrono::Local::now().to_string()
     );
@@ -89,6 +91,7 @@ async fn main() {
                 nat_ip,
                 match mode {
                     ExternalApi => "External API",
+                    Mode::Router => "Router",
                 },
                 chrono::Local::now().to_string()
             );
