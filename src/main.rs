@@ -1,4 +1,4 @@
-use crate::Mode::ExternalApi;
+use crate::Mode::{ExternalApi, Router};
 use reqwest::{Response, StatusCode};
 use serde::Deserialize;
 use serde_json::json;
@@ -17,8 +17,20 @@ async fn main() {
     let domain_data = std::env::var("DOMAIN_DATA")
         .expect("DOMAIN_DATA environment variable is missing.")
         .to_string();
-    // used for future feature
-    let mode: Mode = ExternalApi;
+    let mode: Mode = match std::env::var("MODE") {
+        Ok(res) => match res {
+            String::from("external_api") => ExternalApi,
+            String::from("router") => Router,
+            other => {
+                println!("Mode {other} not known. Value defaults to \"external_api\".");
+                ExternalApi
+            }
+        },
+        Err(_) => {
+            println!("No mode set. Value defaults to \"external_api\".");
+            ExternalApi
+        }
+    };
 
     // parsing data from environment variables
     let domain_data: Vec<Domain> = domain_data
