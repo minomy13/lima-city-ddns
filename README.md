@@ -37,7 +37,8 @@ For any other router you should be able to figure it out yourself with the follo
 - The Update-URL should be as following: `<address>/?password=<password>&ip=<ip_address>`. The `password` and
   `ip_address` fields vary depending on your router. For the FritzBox for example they are `<pass>` and `<ipaddr>`, for
   [inadyn](https://github.com/troglobit/inadyn)-based software however, like on the UDM Pro, it would be `%p` and `%i`.
-- The password is the one you'll set the `PASSWORD` environment variable to.
+- The password is the one you'll set the `PASSWORD` environment variable to. Must be URL encoded -
+  [this website](https://www.urlencoder.org) worked perfectly for me.
 - The username really doesn't matter - get creative! 😉
 - The same applies to the host.
 
@@ -60,4 +61,4 @@ services:
 | `AUTH`        | lima-city auth token used to authorize with the lima-city API.                                                                                           |                | yes                 |
 | `DOMAIN_DATA` | String containing domain and record IDs that should be updated. Take a look at the [#formatting-your-domain_data](#formatting-your-domain_data) section. |                | yes                 |
 | `MODE`        | Select the mode you want to use. It is either `router` or `external_api`. The modes are described in the [#docker-compose](#docker-compose) section.     | `external_api` | no                  |
-| `PASSWORD`    | Password to authenticate in router mode.                                                                                                                 |                | only in router mode |
+| `PASSWORD`    | Password to authenticate in router mode. Must be URL encoded - [this website](https://www.urlencoder.org) worked perfectly for me.                    |                | only in router mode |
