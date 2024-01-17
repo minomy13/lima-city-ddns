@@ -1,5 +1,11 @@
 # lima-city-ddns
-This app allows you to have Dynamic DNS for your [lima-city](https://www.lima-city.de) DNS server.
+![GitHub Tag](https://img.shields.io/github/v/tag/minomy13/lima-city-ddns?style=for-the-badge&label=release)
+![GitHub License](https://img.shields.io/github/license/minomy13/lima-city-ddns?style=for-the-badge)
+<a href="https://github.com/minomy13/lima-city-ddns/pkgs/container/lima-city-ddns">
+  ![Static Badge](https://img.shields.io/badge/docker-rgb(85%2C85%2C85)?style=for-the-badge&logo=docker)
+</a>
+
+> ℹ️ This app allows you to have Dynamic DNS for your [lima-city](https://www.lima-city.de) DNS server.
 
 ![Alt](https://repobeats.axiom.co/api/embed/bf76f355ef9e4b7cf84809c514dbac8f12cf6973.svg "Repobeats analytics image")
 
