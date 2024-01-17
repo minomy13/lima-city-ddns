@@ -1,6 +1,8 @@
 # lima-city-ddns
 This app allows you to have Dynamic DNS for your [lima-city](https://www.lima-city.de) DNS server.
 
+![Alt](https://repobeats.axiom.co/api/embed/bf76f355ef9e4b7cf84809c514dbac8f12cf6973.svg "Repobeats analytics image")
+
 ## Gaining required values
 At first, you should create an API-Key in the lima-city settings. You should assign the `domains.admin` and `dns.admin`
 permissions. Then you can execute `curl https://www.lima-city.de/usercp/domains.json -u api:<YOUR_API_KEY>` and read the
